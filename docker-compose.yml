@@ -1,0 +1,23 @@
+version: '3.8'
+
+services:
+  rl-swarm:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: rl-swarm:latest
+    container_name: rl-swarm-node
+    ports:
+      - "3000:3000"
+    volumes:
+      - swarm-data:/app/data
+      - swarm-logs:/app/logs
+    restart: unless-stopped
+    environment:
+      - PYTHONUNBUFFERED=1
+    stdin_open: true
+    tty: true
+
+volumes:
+  swarm-data:
+  swarm-logs:
