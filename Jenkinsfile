@@ -1,147 +1,72 @@
 pipeline {
-    agent any
+  agent any
 
-    environment {
-        DOCKER_IMAGE_NAME = 'rl-swarm'
-        UPSTREAM_REPO = 'gensyn-ai/rl-swarm'
-        DOCKER_REGISTRY = credentials('docker-hub-credentials')
-        LAST_BUILD_COMMIT = ''
+  environment {
+    // keep the same credentials id you use in Jenkins
+    DOCKERHUB_CREDENTIALS = 'dockerhub-credentials'
+  }
+
+  options {
+    // keep build logs a bit cleaner and allow ANSI if needed
+    ansiColor('xterm')
+  }
+
+  stages {
+    stage('Checkout') {
+      steps {
+        // ensure checkout happens on an agent so FilePath is available
+        checkout scm
+      }
     }
 
-    stages {
-        stage('Checkout') {
-            steps {
-                checkout scm
-                script {
-                    echo "Checked out repository"
-                }
-            }
-        }
-
-        stage('Check Upstream Changes') {
-            steps {
-                script {
-                    def response = sh(
-                        script: "curl -s 'https://api.github.com/repos/${UPSTREAM_REPO}/commits/main'",
-                        returnStdout: true
-                    ).trim()
-
-                    def json = readJSON text: response
-                    env.LATEST_COMMIT = json.sha
-
-                    echo "Latest upstream commit: ${env.LATEST_COMMIT}"
-
-                    try {
-                        env.LAST_BUILD_COMMIT = readFile('last_build_commit.txt').trim()
-                        echo "Last built commit: ${env.LAST_BUILD_COMMIT}"
-                    } catch (Exception e) {
-                        echo "No previous build found"
-                        env.LAST_BUILD_COMMIT = ''
-                    }
-
-                    if (env.LATEST_COMMIT != env.LAST_BUILD_COMMIT) {
-                        env.SHOULD_BUILD = 'true'
-                        echo "Changes detected! Building new image..."
-                    } else {
-                        env.SHOULD_BUILD = 'false'
-                        echo "No changes detected. Skipping build."
-                        currentBuild.result = 'SUCCESS'
-                    }
-                }
-            }
-        }
-
-        stage('Build Docker Image') {
-            when {
-                expression { env.SHOULD_BUILD == 'true' }
-            }
-            steps {
-                script {
-                    echo "Building Docker image..."
-                    sh """
-                        docker build -t ${DOCKER_IMAGE_NAME}:latest .
-                        docker tag ${DOCKER_IMAGE_NAME}:latest ${DOCKER_REGISTRY_USR}/${DOCKER_IMAGE_NAME}:latest
-                        docker tag ${DOCKER_IMAGE_NAME}:latest ${DOCKER_REGISTRY_USR}/${DOCKER_IMAGE_NAME}:\$(date +%Y%m%d)
-                    """
-                }
-            }
-        }
-
-        stage('Run Tests') {
-            when {
-                expression { env.SHOULD_BUILD == 'true' }
-            }
-            steps {
-                script {
-                    echo "Running basic image validation..."
-                    sh """
-                        docker run --rm ${DOCKER_IMAGE_NAME}:latest python3 --version
-                        docker run --rm ${DOCKER_IMAGE_NAME}:latest node --version
-                        docker run --rm ${DOCKER_IMAGE_NAME}:latest yarn --version
-                    """
-                }
-            }
-        }
-
-        stage('Push to Registry') {
-            when {
-                expression { env.SHOULD_BUILD == 'true' }
-            }
-            steps {
-                script {
-                    echo "Pushing to Docker Hub..."
-                    sh """
-                        echo ${DOCKER_REGISTRY_PSW} | docker login -u ${DOCKER_REGISTRY_USR} --password-stdin
-                        docker push ${DOCKER_REGISTRY_USR}/${DOCKER_IMAGE_NAME}:latest
-                        docker push ${DOCKER_REGISTRY_USR}/${DOCKER_IMAGE_NAME}:\$(date +%Y%m%d)
-                    """
-                }
-            }
-        }
-
-        stage('Update Build Record') {
-            when {
-                expression { env.SHOULD_BUILD == 'true' }
-            }
-            steps {
-                script {
-                    writeFile file: 'last_build_commit.txt', text: env.LATEST_COMMIT
-                    echo "Updated last build commit to: ${env.LATEST_COMMIT}"
-                }
-            }
-        }
-
-        stage('Cleanup') {
-            steps {
-                script {
-                    echo "Cleaning up old Docker images..."
-                    sh """
-                        docker system prune -f || true
-                    """
-                }
-            }
-        }
+    stage('Build') {
+      steps {
+        sh '''
+          echo "Building project..."
+          # add your build commands here, e.g. mvn, pip install, make, etc.
+        '''
+      }
     }
 
-    post {
-        success {
-            script {
-                if (env.SHOULD_BUILD == 'true') {
-                    echo "✅ Docker image built and pushed successfully!"
-                    echo "Image: ${DOCKER_REGISTRY_USR}/${DOCKER_IMAGE_NAME}:latest"
-                    echo "Upstream commit: ${env.LATEST_COMMIT}"
-                } else {
-                    echo "ℹ️ No changes detected - build skipped"
-                }
-            }
-        }
-        failure {
-            echo "❌ Build failed! Check logs for details."
-        }
-        always {
-            script {
-                sh "docker logout || true"
-            }
-        }
+    stage('Test') {
+      steps {
+        sh '''
+          echo "Running tests..."
+          # run test commands here
+        '''
+      }
     }
+
+    stage('Docker: Build & Push') {
+      when {
+        expression { return env.DOCKERHUB_CREDENTIALS != null }
+      }
+      steps {
+        withCredentials([usernamePassword(credentialsId: "${DOCKERHUB_CREDENTIALS}", usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
+          sh '''
+            echo "Building docker image..."
+            # docker build -t myimage:latest .
+            echo "Logging into Docker Hub..."
+            echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
+            # docker tag myimage:latest $DOCKER_USER/myimage:latest
+            # docker push $DOCKER_USER/myimage:latest
+          '''
+        }
+      }
+    }
+  }
+
+  post {
+    always {
+      // runs on the agent (because agent any is declared) so hudson.FilePath is present
+      echo 'Running post/always cleanup'
+      sh 'echo cleanup actions (e.g., rm -rf build artifacts)'
+    }
+    success {
+      echo 'Build succeeded'
+    }
+    failure {
+      echo 'Build failed'
+    }
+  }
 }
