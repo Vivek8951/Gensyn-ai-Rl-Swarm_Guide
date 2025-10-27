@@ -2,6 +2,7 @@
 .github
 .gitignore
 *.md
+!README.md
 .env
 node_modules
 .venv
@@ -11,7 +12,11 @@ __pycache__
 *.pyd
 .Python
 .DS_Store
-docker-compose.yml
-Dockerfile
-deploy.sh
-.dockerignore
+.vscode
+*.swp
+*.swo
+*~
+.idea
+last_build_commit.txt
+rl-swarm/modal-login
+npm-debug.log
