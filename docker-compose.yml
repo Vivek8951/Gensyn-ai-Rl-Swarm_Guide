@@ -10,14 +10,17 @@ services:
     ports:
       - "3000:3000"
     volumes:
-      - swarm-data:/app/data
-      - swarm-logs:/app/logs
+      - swarm-data:/home/rlswarm/rl-swarm/data
+      - swarm-logs:/home/rlswarm/rl-swarm/logs
+      - swarm-pem:/home/rlswarm/rl-swarm
     restart: unless-stopped
     environment:
       - PYTHONUNBUFFERED=1
+      - PATH=/home/rlswarm/rl-swarm/.venv/bin:$PATH
     stdin_open: true
     tty: true
 
 volumes:
   swarm-data:
   swarm-logs:
+  swarm-pem:
