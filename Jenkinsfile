@@ -6,15 +6,9 @@ pipeline {
     DOCKERHUB_CREDENTIALS = 'dockerhub-credentials'
   }
 
-  options {
-    // keep build logs a bit cleaner and allow ANSI if needed
-    ansiColor('xterm')
-  }
-
   stages {
     stage('Checkout') {
       steps {
-        // ensure checkout happens on an agent so FilePath is available
         checkout scm
       }
     }
@@ -58,7 +52,6 @@ pipeline {
 
   post {
     always {
-      // runs on the agent (because agent any is declared) so hudson.FilePath is present
       echo 'Running post/always cleanup'
       sh 'echo cleanup actions (e.g., rm -rf build artifacts)'
     }
