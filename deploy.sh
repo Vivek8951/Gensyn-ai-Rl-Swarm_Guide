@@ -71,6 +71,21 @@ elif [ "$1" == "clean" ]; then
         echo "Cleanup cancelled."
     fi
 
+elif [ "$1" == "login" ]; then
+    echo "Opening login interface..."
+    if [ -f ./login-helper.sh ]; then
+        ./login-helper.sh
+    else
+        echo "Login helper not found. Opening browser to http://localhost:3000"
+        if command -v xdg-open > /dev/null; then
+            xdg-open http://localhost:3000
+        elif command -v open > /dev/null; then
+            open http://localhost:3000
+        else
+            echo "Please open http://localhost:3000 in your browser"
+        fi
+    fi
+
 else
     echo "Usage: ./deploy.sh [command]"
     echo ""
@@ -83,11 +98,13 @@ else
     echo "  pull <image>       Pull a specific Docker image"
     echo "  update <image>     Update to latest version from registry"
     echo "  shell              Open a shell in the running container"
+    echo "  login              Open the login interface (port 3000)"
     echo "  clean              Clean up Docker resources"
     echo ""
     echo "Examples:"
     echo "  ./deploy.sh build"
     echo "  ./deploy.sh up"
+    echo "  ./deploy.sh login"
     echo "  ./deploy.sh pull yourusername/rl-swarm:latest"
     echo "  ./deploy.sh update yourusername/rl-swarm:latest"
     exit 1
