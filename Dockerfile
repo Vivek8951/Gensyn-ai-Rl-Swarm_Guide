@@ -15,6 +15,9 @@ RUN apt-get update && apt-get install -y \
     lsof \
     ufw \
     ca-certificates \
+    gnupg \
+    apt-transport-https \
+    software-properties-common \
     && rm -rf /var/lib/apt/lists/*
 
 RUN wget -q https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb && \
@@ -26,8 +29,18 @@ RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
     apt-get install -y nodejs && \
     rm -rf /var/lib/apt/lists/*
 
-RUN npm install -g yarn && \
-    corepack enable
+RUN curl -sS https://dl.yarnpkg.com/debian/pubkey.gpg | apt-key add - && \
+    echo "deb https://dl.yarnpkg.com/debian/ stable main" | tee /etc/apt/sources.list.d/yarn.list > /dev/null && \
+    apt-get update && \
+    apt-get install -y yarn && \
+    rm -rf /var/lib/apt/lists/*
+
+RUN corepack enable && npm install -g yarn
+
+RUN python3 --version && \
+    node -v && \
+    npm -v && \
+    yarn -v
 
 RUN useradd -m -s /bin/bash rlswarm && \
     echo "rlswarm ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
@@ -39,13 +52,15 @@ RUN git clone https://github.com/gensyn-ai/rl-swarm.git rl-swarm
 
 WORKDIR /home/rlswarm/rl-swarm
 
-RUN python3 -m venv .venv && \
-    bash -c "source .venv/bin/activate && pip install --upgrade pip"
+RUN python3 -m venv .venv
+
+RUN bash -c "source .venv/bin/activate && pip install --upgrade pip"
 
 RUN if [ -f run_rl_swarm.sh ]; then chmod +x run_rl_swarm.sh; fi
 
 ENV PATH="/home/rlswarm/rl-swarm/.venv/bin:${PATH}"
+ENV VIRTUAL_ENV="/home/rlswarm/rl-swarm/.venv"
 
 EXPOSE 3000
 
-CMD ["/bin/bash", "-c", "source .venv/bin/activate && exec ./run_rl_swarm.sh"]
+CMD ["/bin/bash", "-c", "echo ''; echo '╔═══════════════════════════════════════════════════════════╗'; echo '║  RL-Swarm is starting...                                  ║'; echo '║  Access login at: http://localhost:3000                   ║'; echo '║  Or run: ./deploy.sh login                                ║'; echo '╚═══════════════════════════════════════════════════════════╝'; echo ''; source .venv/bin/activate && exec ./run_rl_swarm.sh"]
