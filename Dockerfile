@@ -29,13 +29,7 @@ RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
     apt-get install -y nodejs && \
     rm -rf /var/lib/apt/lists/*
 
-RUN curl -sS https://dl.yarnpkg.com/debian/pubkey.gpg | apt-key add - && \
-    echo "deb https://dl.yarnpkg.com/debian/ stable main" | tee /etc/apt/sources.list.d/yarn.list > /dev/null && \
-    apt-get update && \
-    apt-get install -y yarn && \
-    rm -rf /var/lib/apt/lists/*
-
-RUN corepack enable && npm install -g yarn
+RUN corepack enable && corepack prepare yarn@stable --activate
 
 RUN python3 --version && \
     node -v && \
