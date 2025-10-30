@@ -12,15 +12,16 @@ services:
     volumes:
       - swarm-data:/home/rlswarm/rl-swarm/data
       - swarm-logs:/home/rlswarm/rl-swarm/logs
-      - swarm-pem:/home/rlswarm/rl-swarm
+      - swarm-repo:/home/rlswarm/rl-swarm
     restart: unless-stopped
     environment:
       - PYTHONUNBUFFERED=1
       - PATH=/home/rlswarm/rl-swarm/.venv/bin:$PATH
+      - AUTO_TUNNEL=${AUTO_TUNNEL:-false}
     stdin_open: true
     tty: true
 
 volumes:
   swarm-data:
   swarm-logs:
-  swarm-pem:
+  swarm-repo:
