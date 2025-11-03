@@ -113,68 +113,65 @@ start_tunnel_when_ready() {
 
     # Wait for RL-Swarm to be ready using improved detection
     if wait_for_rlswarm_ready; then
+        echo ""
+        echo "╔═══════════════════════════════════════════════════════════╗"
+        echo "║  ✅ RL-Swarm is running on localhost:3000                 ║"
+        echo "╚═══════════════════════════════════════════════════════════╝"
+        echo ""
+
+        # Check if we're in a remote/VPS environment
+        if [ -n "$SSH_CONNECTION" ] || [ -n "$SSH_CLIENT" ] || [ "$AUTO_TUNNEL" = "true" ] || [ "$REMOTE_ACCESS" = "true" ]; then
+            echo "🌐 Remote/VPS environment detected - Setting up access tunnel..."
             echo ""
-            echo "╔═══════════════════════════════════════════════════════════╗"
-            echo "║  ✅ RL-Swarm is running on localhost:3000                 ║"
-            echo "╚═══════════════════════════════════════════════════════════╝"
-            echo ""
 
-            # Check if we're in a remote/VPS environment
-            if [ -n "$SSH_CONNECTION" ] || [ -n "$SSH_CLIENT" ] || [ "$AUTO_TUNNEL" = "true" ] || [ "$REMOTE_ACCESS" = "true" ]; then
-                echo "🌐 Remote/VPS environment detected - Setting up access tunnel..."
+            # Check if custom tunnel configuration is provided
+            if [ -n "$CLOUDFLARE_TUNNEL_TOKEN" ] && [ -n "$TUNNEL_DOMAIN" ]; then
+                echo "🚀 Using custom Cloudflare tunnel configuration..."
+                echo "╔═══════════════════════════════════════════════════════════╗"
+                echo "║  🔗 Custom Domain Tunnel Active!                         ║"
+                echo "║  Access URL: https://${TUNNEL_DOMAIN}                    ║"
+                echo "╚═══════════════════════════════════════════════════════════╝"
                 echo ""
-
-                # Check if custom tunnel configuration is provided
-                if [ -n "$CLOUDFLARE_TUNNEL_TOKEN" ] && [ -n "$TUNNEL_DOMAIN" ]; then
-                    echo "🚀 Using custom Cloudflare tunnel configuration..."
-                    echo "╔═══════════════════════════════════════════════════════════╗"
-                    echo "║  🔗 Custom Domain Tunnel Active!                         ║"
-                    echo "║  Access URL: https://${TUNNEL_DOMAIN}                    ║"
-                    echo "╚═══════════════════════════════════════════════════════════╝"
-                    echo ""
-                    cloudflared tunnel --token "${CLOUDFLARE_TUNNEL_TOKEN}"
-                elif [ -n "$TUNNEL_DOMAIN" ]; then
-                    echo "🚀 Creating named tunnel for domain: ${TUNNEL_DOMAIN}"
-                    echo "╔═══════════════════════════════════════════════════════════╗"
-                    echo "║  🔗 Domain Tunnel Active!                                 ║"
-                    echo "║  Access URL: https://${TUNNEL_DOMAIN}                    ║"
-                    echo "╚═══════════════════════════════════════════════════════════╝"
-                    echo ""
-                    cloudflared tunnel --url http://localhost:3000 --hostname "${TUNNEL_DOMAIN}"
-                else
-                    echo "🚀 Starting Cloudflare tunnel with random URL..."
-                    echo "╔═══════════════════════════════════════════════════════════╗"
-                    echo "║  🌐 Cloudflare Tunnel Active!                             ║"
-                    echo "║  Copy the URL below to access from your local browser:    ║"
-                    echo "╚═══════════════════════════════════════════════════════════╝"
-                    echo ""
-                    cloudflared tunnel --url http://localhost:3000
-                fi
-
-                # Display additional access information
+                cloudflared tunnel --token "${CLOUDFLARE_TUNNEL_TOKEN}"
+            elif [ -n "$TUNNEL_DOMAIN" ]; then
+                echo "🚀 Creating named tunnel for domain: ${TUNNEL_DOMAIN}"
+                echo "╔═══════════════════════════════════════════════════════════╗"
+                echo "║  🔗 Domain Tunnel Active!                                 ║"
+                echo "║  Access URL: https://${TUNNEL_DOMAIN}                    ║"
+                echo "╚═══════════════════════════════════════════════════════════╝"
                 echo ""
-                echo "📋 Access Information:"
-                echo "   • Primary URL: See tunnel URL above"
-                echo "   • Container Port: 3000"
-                echo "   • External Port: ${EXTERNAL_PORT:-3000}"
-                if [ -n "$TUNNEL_PORT" ] && [ "$TUNNEL_PORT" != "22" ]; then
-                    echo "   • SSH Tunnel Port: ${TUNNEL_PORT}"
-                fi
-                echo ""
-
+                cloudflared tunnel --url http://localhost:3000 --hostname "${TUNNEL_DOMAIN}"
             else
-                echo "💻 Local environment detected"
-                echo "   • Direct access: http://localhost:3000"
-                echo "   • External port: ${EXTERNAL_PORT:-3000}"
+                echo "🚀 Starting Cloudflare tunnel with random URL..."
+                echo "╔═══════════════════════════════════════════════════════════╗"
+                echo "║  🌐 Cloudflare Tunnel Active!                             ║"
+                echo "║  Copy the URL below to access from your local browser:    ║"
+                echo "╚═══════════════════════════════════════════════════════════╝"
                 echo ""
-                echo "ℹ️  To manually start tunnel, run:"
-                echo "   docker exec -it rl-swarm-node cloudflared tunnel --url http://localhost:3000"
-                echo ""
+                cloudflared tunnel --url http://localhost:3000
             fi
-            break
+
+            # Display additional access information
+            echo ""
+            echo "📋 Access Information:"
+            echo "   • Primary URL: See tunnel URL above"
+            echo "   • Container Port: 3000"
+            echo "   • External Port: ${EXTERNAL_PORT:-3000}"
+            if [ -n "$TUNNEL_PORT" ] && [ "$TUNNEL_PORT" != "22" ]; then
+                echo "   • SSH Tunnel Port: ${TUNNEL_PORT}"
+            fi
+            echo ""
+
+        else
+            echo "💻 Local environment detected"
+            echo "   • Direct access: http://localhost:3000"
+            echo "   • External port: ${EXTERNAL_PORT:-3000}"
+            echo ""
+            echo "ℹ️  To manually start tunnel, run:"
+            echo "   docker exec -it rl-swarm-node cloudflared tunnel --url http://localhost:3000"
+            echo ""
         fi
-        sleep 2
-    done
+    fi
 }
 
 # Function to display network configuration
