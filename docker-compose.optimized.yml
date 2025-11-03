@@ -1,0 +1,90 @@
+version: '3.8'
+
+services:
+  rl-swarm:
+    build:
+      context: .
+      dockerfile: Dockerfile.optimized
+    image: rl-swarm:optimized
+    container_name: rl-swarm-optimized
+    ports:
+      - "3000:3000"    # Main RL-Swarm interface
+      - "8080:8080"    # Alternative port 1
+      - "8081:8081"    # Alternative port 2
+      - "8082:8082"    # Alternative port 3
+      - "9000:9000"    # Alternative port 4
+      - "9001:9001"    # Alternative port 5
+      - "9002:9002"    # Alternative port 6
+    volumes:
+      # Persistent data volumes
+      - swarm-data:/home/rlswarm/rl-swarm/data
+      - swarm-logs:/home/rlswarm/rl-swarm/logs
+      - swarm-repo:/home/rlswarm/rl-swarm
+
+      # Cache volumes for performance
+      - pip-cache:/home/rlswarm/.cache/pip
+      - yarn-cache:/home/rlswarm/.cache/yarn
+      - apt-cache:/var/cache/apt
+      - build-cache:/opt/rl-swarm-cache
+
+      # Configuration volume
+      - swarm-config:/home/rlswarm/.config
+    restart: unless-stopped
+    environment:
+      - PYTHONUNBUFFERED=1
+      - PATH=/home/rlswarm/rl-swarm/.venv/bin:$PATH
+      - AUTO_TUNNEL=${AUTO_TUNNEL:-true}
+      - TUNNEL_DOMAIN=${TUNNEL_DOMAIN:-}
+      - CLOUDFLARE_TUNNEL_TOKEN=${CLOUDFLARE_TUNNEL_TOKEN:-}
+      - REMOTE_ACCESS=${REMOTE_ACCESS:-true}
+      - SELF_CONTAINED=true
+      - AUTO_PORT_FORWARD=true
+      - FORCE_UPDATE=${FORCE_UPDATE:-false}
+      - PIP_CACHE_DIR=/home/rlswarm/.cache/pip
+      - YARN_CACHE_FOLDER=/home/rlswarm/.cache/yarn
+    networks:
+      - rl-swarm-network
+    # Health check with better configuration
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health || exit 1"]
+      interval: 30s
+      timeout: 15s
+      retries: 5
+      start_period: 120s  # Longer start period for first setup
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: '1.0'
+        reservations:
+          memory: 512M
+          cpus: '0.25'
+
+networks:
+  rl-swarm-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+
+volumes:
+  # Data volumes
+  swarm-data:
+    driver: local
+  swarm-logs:
+    driver: local
+  swarm-repo:
+    driver: local
+  swarm-config:
+    driver: local
+
+  # Cache volumes for performance
+  pip-cache:
+    driver: local
+  yarn-cache:
+    driver: local
+  apt-cache:
+    driver: local
+  build-cache:
+    driver: local
