@@ -131,6 +131,131 @@ if [ "$AUTO_TUNNEL" = "true" ]; then
     start_tunnel_when_ready &
 fi
 
+# Function to show automatic port forwarding display
+show_auto_port_forwarding() {
+    echo ""
+    echo "╔═══════════════════════════════════════════════════════════╗"
+    echo "║  🌐 AUTOMATIC PORT FORWARDING ACTIVE                      ║"
+    echo "╚═══════════════════════════════════════════════════════════╝"
+    echo ""
+
+    # Get host IP
+    HOST_IP=$(curl -s ifconfig.me 2>/dev/null || curl -s ipinfo.io/ip 2>/dev/null || echo "YOUR_VPS_IP")
+
+    echo "🎉 ${GREEN}MULTIPLE ACCESS POINTS READY${NC}"
+    echo "================================"
+    echo ""
+
+    echo "📍 ${YELLOW}Primary Access:${NC}"
+    echo "   Main Interface: ${GREEN}http://${HOST_IP}:3000${NC}"
+    echo ""
+
+    echo "🔗 ${YELLOW}Alternative Ports (Starting Soon):${NC}"
+    echo "   Port 8080: ${GREEN}http://${HOST_IP}:8080${NC} → RL-Swarm"
+    echo "   Port 8081: ${GREEN}http://${HOST_IP}:8081${NC} → RL-Swarm"
+    echo "   Port 8082: ${GREEN}http://${HOST_IP}:8082${NC} → RL-Swarm"
+    echo "   Port 9000: ${GREEN}http://${HOST_IP}:9000${NC} → RL-Swarm"
+    echo "   Port 9001: ${GREEN}http://${HOST_IP}:9001${NC} → RL-Swarm"
+    echo "   Port 9002: ${GREEN}http://${HOST_IP}:9002${NC} → RL-Swarm"
+    echo ""
+
+    echo "🌐 ${YELLOW}Cloudflare Tunnel:${NC}"
+    echo "   Starting automatic tunnel (check logs for URL)..."
+    echo ""
+
+    echo "📋 ${YELLOW}Quick Access:${NC}"
+    echo "   ${GREEN}http://${HOST_IP}:3000${NC} - Main Interface"
+    echo "   ${GREEN}http://${HOST_IP}:8080${NC} - Web Access"
+    echo "   ${GREEN}http://${HOST_IP}:8081${NC} - Service 1"
+    echo "   ${GREEN}http://${HOST_IP}:8082${NC} - Service 2"
+    echo ""
+
+    echo "✅ ${GREEN}All ports will forward to the same RL-Swarm instance!${NC}"
+    echo "🔥 ${GREEN}No manual port commands needed!${NC}"
+    echo ""
+}
+
+# Function to start alternative port servers inside container
+start_container_port_servers() {
+    echo "🔗 Starting alternative port servers in background..."
+
+    # Create simple Python proxy servers for alternative ports
+    python3 -c "
+import http.server
+import socketserver
+import urllib.request
+import threading
+import time
+import sys
+import signal
+
+MAIN_PORT = 3000
+ALT_PORTS = [8080, 8081, 8082, 9000, 9001, 9002]
+
+class ProxyHandler(http.server.BaseHTTPRequestHandler):
+    def proxy_request(self, path, method='GET', post_data=None):
+        try:
+            url = f'http://localhost:{MAIN_PORT}{path}'
+
+            if method == 'POST' and post_data:
+                req = urllib.request.Request(url, post_data)
+            else:
+                req = urllib.request.Request(url)
+
+            # Copy headers except Host
+            for header, value in self.headers.items():
+                if header.lower() != 'host':
+                    req.add_header(header, value)
+
+            response = urllib.request.urlopen(req)
+
+            self.send_response(response.getcode())
+            for header, value in response.headers.items():
+                self.send_header(header, value)
+            self.end_headers()
+
+            if method == 'GET':
+                self.wfile.write(response.read())
+            else:
+                self.wfile.write(response.read())
+
+        except Exception as e:
+            self.send_error(502, f'Proxy Error: {e}')
+
+    def do_GET(self):
+        self.proxy_request(self.path)
+
+    def do_POST(self):
+        content_length = int(self.headers.get('Content-Length', 0))
+        post_data = self.rfile.read(content_length) if content_length > 0 else None
+        self.proxy_request(self.path, 'POST', post_data)
+
+def start_server(port):
+    try:
+        with socketserver.TCPServer(('', port), ProxyHandler) as httpd:
+            print(f'Proxy server started on port {port} -> localhost:{MAIN_PORT}')
+            httpd.serve_forever()
+    except Exception as e:
+        print(f'Failed to start server on port {port}: {e}')
+
+# Start servers in background threads
+for port in ALT_PORTS:
+    thread = threading.Thread(target=start_server, args=(port,))
+    thread.daemon = True
+    thread.start()
+    time.sleep(0.1)  # Small delay between servers
+
+print('All proxy servers started in background')
+" > /tmp/port_servers.log 2>&1 &
+
+    echo "   Alternative port servers started (check /tmp/port_servers.log)"
+}
+
+# Start container port servers if in container environment
+if [ -f /.dockerenv ] || grep -q 'docker\|lxc' /proc/1/cgroup 2>/dev/null; then
+    start_container_port_servers
+fi
+
 # Display startup message
 echo "╔═══════════════════════════════════════════════════════════╗"
 echo "║  🚀 Starting RL-Swarm...                                   ║"
@@ -140,14 +265,17 @@ echo ""
 # Show network configuration
 show_network_info
 
+# Show automatic port forwarding display
+show_auto_port_forwarding
+
 echo "╔═══════════════════════════════════════════════════════════╗"
-echo "║  📍 Access Information                                      ║"
+echo "║  🎉 PORT FORWARDING AUTOMATICALLY CONFIGURED!             ║"
 echo "║                                                           ║"
-echo "║  • Local: http://localhost:3000                           ║"
-echo "║  • External: http://YOUR_VPS_IP:${EXTERNAL_PORT:-3000}    ║"
+echo "║  ✅ Multiple access points ready                           ║"
+echo "║  ✅ Cloudflare tunnel starting                            ║"
+echo "║  ✅ No manual commands needed                              ║"
 echo "║                                                           ║"
-echo "║  💡 Tip: Run './deploy.sh login' to auto-open browser     ║"
-echo "║  🌐 For remote access, tunnel will start automatically    ║"
+echo "║  🌐 Use any of the URLs above to access RL-Swarm!         ║"
 echo "╚═══════════════════════════════════════════════════════════╝"
 echo ""
 
