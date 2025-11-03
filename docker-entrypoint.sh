@@ -54,6 +54,17 @@ else
         fi
     else
         echo "🔄 Skipping update (use FORCE_UPDATE=true to update)"
+        echo "   📦 Git repository preserved"
+        echo "   🐍 Virtual environment preserved"
+        echo "   📋 Node.js modules will be checked by RL-Swarm"
+    fi
+
+    # Check if node_modules exists in persistent volume
+    if [ ! -d "node_modules" ]; then
+        echo "📦 Node.js modules not found - RL-Swarm will install them on first run"
+        echo "   📋 This is normal and will only happen once"
+    else
+        echo "✅ Node.js modules found - skipping download"
     fi
 
     # Don't overwrite local files
