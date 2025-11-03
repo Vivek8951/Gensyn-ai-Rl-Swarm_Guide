@@ -8,7 +8,8 @@ services:
     image: rl-swarm:latest
     container_name: rl-swarm-node
     ports:
-      - "3000:3000"
+      - "${EXTERNAL_PORT:-3000}:3000"
+      - "${TUNNEL_PORT:-22}:22"  # Optional SSH tunnel port
     volumes:
       - swarm-data:/home/rlswarm/rl-swarm/data
       - swarm-logs:/home/rlswarm/rl-swarm/logs
@@ -17,9 +18,18 @@ services:
     environment:
       - PYTHONUNBUFFERED=1
       - PATH=/home/rlswarm/rl-swarm/.venv/bin:$PATH
-      - AUTO_TUNNEL=${AUTO_TUNNEL:-false}
+      - AUTO_TUNNEL=${AUTO_TUNNEL:-true}
+      - TUNNEL_DOMAIN=${TUNNEL_DOMAIN:-}
+      - CLOUDFLARE_TUNNEL_TOKEN=${CLOUDFLARE_TUNNEL_TOKEN:-}
+      - REMOTE_ACCESS=${REMOTE_ACCESS:-true}
     stdin_open: true
     tty: true
+    networks:
+      - rl-swarm-network
+
+networks:
+  rl-swarm-network:
+    driver: bridge
 
 volumes:
   swarm-data:
