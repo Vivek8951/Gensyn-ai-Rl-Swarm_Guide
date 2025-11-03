@@ -35,7 +35,6 @@ RUN curl -sS https://dl.yarnpkg.com/debian/pubkey.gpg | apt-key add - && \
     apt-get install -y yarn && \
     rm -rf /var/lib/apt/lists/*
 
-RUN corepack enable && npm install -g yarn
 
 RUN python3 --version && \
     node -v && \
