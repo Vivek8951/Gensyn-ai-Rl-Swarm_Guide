@@ -76,20 +76,168 @@ elif [ "$1" == "login" ]; then
     if [ -f ./login-helper.sh ]; then
         ./login-helper.sh
     else
-        echo "Login helper not found. Opening browser to http://localhost:3000"
-        if command -v xdg-open > /dev/null; then
-            xdg-open http://localhost:3000
-        elif command -v open > /dev/null; then
-            open http://localhost:3000
+        # Check if we're on a VPS/remote server
+        if [ -n "$SSH_CONNECTION" ] || [ -n "$SSH_CLIENT" ]; then
+            EXTERNAL_PORT=${EXTERNAL_PORT:-3000}
+            VPS_IP=$(curl -s ifconfig.me 2>/dev/null || curl -s ipinfo.io/ip 2>/dev/null || echo "YOUR_VPS_IP")
+            echo "🌐 Remote/VPS environment detected"
+            echo "   Local access: http://localhost:${EXTERNAL_PORT}"
+            echo "   External access: http://${VPS_IP}:${EXTERNAL_PORT}"
+            echo ""
+            echo "🔗 Check container logs for Cloudflare tunnel URL:"
+            echo "   ./deploy.sh logs"
+            echo ""
         else
-            echo "Please open http://localhost:3000 in your browser"
+            echo "Login helper not found. Opening browser to http://localhost:3000"
+            if command -v xdg-open > /dev/null; then
+                xdg-open http://localhost:3000
+            elif command -v open > /dev/null; then
+                open http://localhost:3000
+            else
+                echo "Please open http://localhost:3000 in your browser"
+            fi
         fi
     fi
+
+elif [ "$1" == "vps" ]; then
+    echo "🌐 VPS/Cloud Deployment Setup"
+    echo "================================"
+    echo ""
+    echo "Setting up environment for VPS deployment..."
+
+    # Create environment file for VPS
+    cat > .env.vps << EOF
+# VPS/Cloud Instance Configuration
+EXTERNAL_PORT=${2:-3000}
+AUTO_TUNNEL=true
+REMOTE_ACCESS=true
+TUNNEL_PORT=${3:-22}
+
+# Optional: Custom domain tunnel (uncomment and configure)
+# TUNNEL_DOMAIN=your-domain.com
+# CLOUDFLARE_TUNNEL_TOKEN=your-token-here
+
+# Docker configuration
+PYTHONUNBUFFERED=1
+EOF
+
+    echo "✓ Created .env.vps configuration file"
+    echo ""
+    echo "📋 VPS Deployment Commands:"
+    echo "   1. Copy environment: cp .env.vps .env"
+    echo "   2. Start container: ./deploy.sh up"
+    echo "   3. View logs: ./deploy.sh logs"
+    echo "   4. Get tunnel URL: ./deploy.sh logs"
+    echo ""
+    echo "🔧 Optional Configuration:"
+    echo "   • Edit .env to customize ports and tunnel settings"
+    echo "   • Set custom domain with TUNNEL_DOMAIN"
+    echo "   • Use Cloudflare token for persistent tunnels"
+    echo ""
+
+elif [ "$1" == "multiport" ]; then
+    echo "🔌 Multi-Port VPS Deployment"
+    echo "============================"
+    echo ""
+    echo "Setting up multi-port environment for VPS..."
+
+    if [ -f "./port-manager.sh" ]; then
+        ./port-manager.sh setup "$2" "$3" "$4" "$5" "$6" "$7" "$8" "$9" "${10}"
+    else
+        echo "❌ Error: port-manager.sh not found"
+        exit 1
+    fi
+
+elif [ "$1" == "ports" ]; then
+    echo "🔌 Port Management"
+    echo "=================="
+    echo ""
+
+    if [ -f "./port-manager.sh" ]; then
+        if [ -z "$2" ]; then
+            ./port-manager.sh status
+        else
+            ./port-manager.sh "$2" "$3" "$4"
+        fi
+    else
+        echo "❌ Error: port-manager.sh not found"
+        echo "Run './deploy.sh multiport' to set up port management first"
+        exit 1
+    fi
+
+elif [ "$1" == "forward" ]; then
+    echo "🔗 Port Forwarding"
+    echo "=================="
+    echo ""
+
+    if [ -f "./port-manager.sh" ]; then
+        ./port-manager.sh forward "$2"
+    else
+        echo "❌ Error: port-manager.sh not found"
+        echo "Run './deploy.sh multiport' to set up port management first"
+        exit 1
+    fi
+
+elif [ "$1" == "start-multi" ]; then
+    echo "🚀 Starting Multi-Port Services"
+    echo "==============================="
+    echo ""
+
+    if [ -f "./port-manager.sh" ]; then
+        ./port-manager.sh start
+    else
+        echo "❌ Error: port-manager.sh not found"
+        exit 1
+    fi
+
+elif [ "$1" == "stop-multi" ]; then
+    echo "🛑 Stopping Multi-Port Services"
+    echo "=============================="
+    echo ""
+
+    if [ -f "./port-manager.sh" ]; then
+        ./port-manager.sh stop
+    else
+        echo "❌ Error: port-manager.sh not found"
+        exit 1
+    fi
+
+elif [ "$1" == "tunnel" ]; then
+    echo "🔗 Cloudflare Tunnel Management"
+    echo "==============================="
+    echo ""
+    if [ "$2" = "status" ]; then
+        echo "Checking tunnel status..."
+        docker exec rl-swarm-node pgrep -f cloudflared > /dev/null 2>&1 && echo "✓ Tunnel is running" || echo "✗ Tunnel is not running"
+    elif [ "$2" = "start" ]; then
+        echo "Starting manual tunnel..."
+        docker exec -it rl-swarm-node cloudflared tunnel --url http://localhost:3000
+    elif [ "$2" = "stop" ]; then
+        echo "Stopping tunnel..."
+        docker exec rl-swarm-node pkill -f cloudflared || echo "No tunnel process found"
+    else
+        echo "Usage: ./deploy.sh tunnel [status|start|stop]"
+        echo ""
+        echo "Commands:"
+        echo "  status    Check if tunnel is running"
+        echo "  start     Start manual tunnel"
+        echo "  stop      Stop running tunnel"
+    fi
+
+elif [ "$1" == "ip" ]; then
+    echo "🌐 Server IP Information"
+    echo "======================="
+    echo ""
+    VPS_IP=$(curl -s ifconfig.me 2>/dev/null || curl -s ipinfo.io/ip 2>/dev/null || echo "Could not determine")
+    echo "External IP: ${VPS_IP}"
+    echo "Local access: http://localhost:${EXTERNAL_PORT:-3000}"
+    echo "External access: http://${VPS_IP}:${EXTERNAL_PORT:-3000}"
+    echo ""
 
 else
     echo "Usage: ./deploy.sh [command]"
     echo ""
-    echo "Commands:"
+    echo "Basic Commands:"
     echo "  build              Build the Docker image locally"
     echo "  up                 Start the container"
     echo "  down               Stop the container"
@@ -101,11 +249,41 @@ else
     echo "  login              Open the login interface (port 3000)"
     echo "  clean              Clean up Docker resources"
     echo ""
+    echo "VPS/Cloud Commands:"
+    echo "  vps [port] [ssh]               Setup VPS environment (default: 3000, 22)"
+    echo "  multiport [ports...]           Setup multi-port environment for VPS"
+    echo "  start-multi                    Start multi-port services"
+    echo "  stop-multi                     Stop multi-port services"
+    echo "  ports [cmd]                    Port management (status, list, config)"
+    echo "  forward <port>                 Forward specific port to RL-Swarm"
+    echo "  tunnel [cmd]                   Manage Cloudflare tunnels"
+    echo "  ip                             Show server IP and access URLs"
+    echo ""
     echo "Examples:"
     echo "  ./deploy.sh build"
     echo "  ./deploy.sh up"
-    echo "  ./deploy.sh login"
-    echo "  ./deploy.sh pull yourusername/rl-swarm:latest"
-    echo "  ./deploy.sh update yourusername/rl-swarm:latest"
+    echo "  ./deploy.sh vps 8080 2222           # VPS setup with custom ports"
+    echo "  ./deploy.sh multiport 3000 80 443   # Multi-port with custom ports"
+    echo "  ./deploy.sh forward 9999            # Forward port 9999 to RL-Swarm"
+    echo "  ./deploy.sh ports status            # Check all port status"
+    echo "  ./deploy.sh tunnel status           # Check tunnel status"
+    echo "  ./deploy.sh ip                      # Get server IP"
+    echo "  ./deploy.sh pull user/rl-swarm:latest"
+    echo ""
+    echo "VPS/Cloud Setup:"
+    echo "  Single Port:"
+    echo "    1. ./deploy.sh vps           # Create VPS environment"
+    echo "    2. cp .env.vps .env          # Apply configuration"
+    echo "    3. ./deploy.sh up            # Start services"
+    echo ""
+    echo "  Multi-Port:"
+    echo "    1. ./deploy.sh multiport     # Setup multi-port environment"
+    echo "    2. cp .env.multiport .env    # Apply multi-port config"
+    echo "    3. ./deploy.sh start-multi   # Start all services"
+    echo "    4. ./deploy.sh ports         # Check port status"
+    echo ""
+    echo "Port Forwarding:"
+    echo "    ./deploy.sh forward 9999     # Forward port 9999"
+    echo "    ./deploy.sh ports list       # List active forwards"
     exit 1
 fi
