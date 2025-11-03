@@ -76,14 +76,43 @@ else
     fi
 fi
 
+# Function to wait for RL-Swarm to be ready
+wait_for_rlswarm_ready() {
+    echo "🔍 Waiting for RL-Swarm to start on localhost:3000..."
+
+    # Wait for the application to start with multiple detection methods
+    for i in {1..60}; do  # Wait up to 2 minutes (60 * 2 seconds)
+        # Method 1: Check if port 3000 is listening
+        if lsof -Pi :3000 -sTCP:LISTEN -t >/dev/null 2>&1; then
+            echo "✅ Port 3000 is listening"
+            # Method 2: Test HTTP connectivity
+            if curl -s --connect-timeout 2 http://localhost:3000 >/dev/null 2>&1; then
+                echo "✅ RL-Swarm is responding on localhost:3000"
+                return 0
+            else
+                echo "⏳ Port is open but service not ready yet..."
+            fi
+        else
+            # Method 3: Check if the process is running
+            if pgrep -f "run_rl_swarm.sh" >/dev/null 2>&1; then
+                echo "⏳ RL-Swarm process is running, waiting for port to open..."
+            else
+                echo "⏳ Waiting for RL-Swarm to start..."
+            fi
+        fi
+        sleep 2
+    done
+
+    echo "⚠️  Timeout waiting for RL-Swarm, but continuing anyway..."
+    return 1
+}
+
 # Function to start cloudflared tunnel when localhost:3000 appears
 start_tunnel_when_ready() {
-    echo "🔍 Monitoring for localhost:3000..."
+    echo "🔍 Monitoring for RL-Swarm availability..."
 
-    # Wait for the application to start
-    while true; do
-        # Check if port 3000 is listening
-        if lsof -Pi :3000 -sTCP:LISTEN -t >/dev/null 2>&1; then
+    # Wait for RL-Swarm to be ready using improved detection
+    if wait_for_rlswarm_ready; then
             echo ""
             echo "╔═══════════════════════════════════════════════════════════╗"
             echo "║  ✅ RL-Swarm is running on localhost:3000                 ║"
