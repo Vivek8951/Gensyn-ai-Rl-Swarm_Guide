@@ -56,11 +56,31 @@ IMAGE_NAME="${DOCKER_USER}/gensyn-rl-swarm"
 TAG="latest"
 
 echo "Building Docker image ${IMAGE_NAME}:${TAG}"
-docker build -t "${IMAGE_NAME}:${TAG}" .
+if ! docker build -t "${IMAGE_NAME}:${TAG}" .; then
+  echo "ERROR: Docker build failed. Showing last 50 lines of build log:"
+  echo "=========================================="
+  # Build logs are shown automatically on failure, but we ensure visibility
+  exit 1
+fi
 
-echo "Logging into Docker Hub and pushing"
-echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
-docker push "${IMAGE_NAME}:${TAG}"
+echo "Docker build successful. Verifying image exists:"
+docker images "${IMAGE_NAME}:${TAG}"
+
+echo "Logging into Docker Hub..."
+if ! echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin; then
+  echo "ERROR: Docker login failed"
+  exit 1
+fi
+
+echo "Pushing Docker image..."
+if ! docker push "${IMAGE_NAME}:${TAG}"; then
+  echo "ERROR: Docker push failed"
+  docker logout
+  exit 1
+fi
+
+echo "Docker push successful. Logging out..."
+docker logout
 '''
             }
           } else {
