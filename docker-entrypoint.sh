@@ -10,7 +10,7 @@ echo ""
 
 # Check if rl-swarm directory exists, if not clone it
 if [ ! -d "/home/rlswarm/rl-swarm" ]; then
-    echo "📦 Cloning RL-Swarm repository..."
+    echo "📦 First-time setup - Cloning RL-Swarm repository..."
     cd /home/rlswarm
     git clone https://github.com/gensyn-ai/rl-swarm.git rl-swarm
     cd rl-swarm
@@ -21,34 +21,98 @@ if [ ! -d "/home/rlswarm/rl-swarm" ]; then
     source .venv/bin/activate
     pip install --upgrade pip
 
+    # Install requirements if they exist
+    if [ -f requirements.txt ]; then
+        echo "📦 Installing Python requirements..."
+        pip install -r requirements.txt
+    fi
+
     # Make script executable
     if [ -f run_rl_swarm.sh ]; then
         chmod +x run_rl_swarm.sh
     fi
+
+    # Mark as first-run completed
+    touch /tmp/rl-swarm-setup-complete
+    echo "✅ First-time setup completed!"
 else
-    echo "✅ RL-Swarm directory exists (preserving swarm.pem)"
+    echo "✅ RL-Swarm directory exists (preserving existing setup)"
     cd /home/rlswarm/rl-swarm
 
-    # Update the repository but preserve local files
-    echo "🔄 Pulling latest changes from repository..."
-    git fetch origin main
-    # Don't overwrite local changes, just inform
+    # Only update if specifically requested (not on every restart)
+    if [ "$FORCE_UPDATE" = "true" ]; then
+        echo "🔄 Force update requested - pulling latest changes..."
+        git fetch origin main
+        git pull origin main
+
+        # Only reinstall if requirements changed
+        if [ requirements.txt -nt /tmp/rl-swarm-requirements-installed ]; then
+            echo "📦 Requirements updated - reinstalling..."
+            source .venv/bin/activate
+            pip install -r requirements.txt
+            touch /tmp/rl-swarm-requirements-installed
+        fi
+    else
+        echo "🔄 Skipping update (use FORCE_UPDATE=true to update)"
+    fi
+
+    # Don't overwrite local files
     if [ -f "swarm.pem" ]; then
         echo "✅ swarm.pem found - authentication preserved!"
     fi
 fi
 
 # Activate virtual environment
-source .venv/bin/activate
+if [ -f ".venv/bin/activate" ]; then
+    source .venv/bin/activate
+    echo "✅ Virtual environment activated"
+else
+    echo "❌ Virtual environment not found - creating new one..."
+    python3 -m venv .venv
+    source .venv/bin/activate
+
+    if [ -f requirements.txt ]; then
+        pip install -r requirements.txt
+    fi
+fi
+
+# Function to wait for RL-Swarm to be ready
+wait_for_rlswarm_ready() {
+    echo "🔍 Waiting for RL-Swarm to start on localhost:3000..."
+
+    # Wait for the application to start with multiple detection methods
+    for i in {1..60}; do  # Wait up to 2 minutes (60 * 2 seconds)
+        # Method 1: Check if port 3000 is listening
+        if lsof -Pi :3000 -sTCP:LISTEN -t >/dev/null 2>&1; then
+            echo "✅ Port 3000 is listening"
+            # Method 2: Test HTTP connectivity
+            if curl -s --connect-timeout 2 http://localhost:3000 >/dev/null 2>&1; then
+                echo "✅ RL-Swarm is responding on localhost:3000"
+                return 0
+            else
+                echo "⏳ Port is open but service not ready yet..."
+            fi
+        else
+            # Method 3: Check if the process is running
+            if pgrep -f "run_rl_swarm.sh" >/dev/null 2>&1; then
+                echo "⏳ RL-Swarm process is running, waiting for port to open..."
+            else
+                echo "⏳ Waiting for RL-Swarm to start..."
+            fi
+        fi
+        sleep 2
+    done
+
+    echo "⚠️  Timeout waiting for RL-Swarm, but continuing anyway..."
+    return 1
+}
 
 # Function to start cloudflared tunnel when localhost:3000 appears
 start_tunnel_when_ready() {
-    echo "🔍 Monitoring for localhost:3000..."
+    echo "🔍 Monitoring for RL-Swarm availability..."
 
-    # Wait for the application to start
-    while true; do
-        # Check if port 3000 is listening
-        if lsof -Pi :3000 -sTCP:LISTEN -t >/dev/null 2>&1; then
+    # Wait for RL-Swarm to be ready using improved detection
+    if wait_for_rlswarm_ready; then
             echo ""
             echo "╔═══════════════════════════════════════════════════════════╗"
             echo "║  ✅ RL-Swarm is running on localhost:3000                 ║"
