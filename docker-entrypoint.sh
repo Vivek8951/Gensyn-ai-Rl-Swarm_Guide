@@ -134,10 +134,20 @@ fi
 # Display startup message
 echo "╔═══════════════════════════════════════════════════════════╗"
 echo "║  🚀 Starting RL-Swarm...                                   ║"
+echo "╚═══════════════════════════════════════════════════════════╝"
+echo ""
+
+# Show network configuration
+show_network_info
+
+echo "╔═══════════════════════════════════════════════════════════╗"
+echo "║  📍 Access Information                                      ║"
 echo "║                                                           ║"
-echo "║  📍 Login will be available at: http://localhost:3000     ║"
+echo "║  • Local: http://localhost:3000                           ║"
+echo "║  • External: http://YOUR_VPS_IP:${EXTERNAL_PORT:-3000}    ║"
 echo "║                                                           ║"
 echo "║  💡 Tip: Run './deploy.sh login' to auto-open browser     ║"
+echo "║  🌐 For remote access, tunnel will start automatically    ║"
 echo "╚═══════════════════════════════════════════════════════════╝"
 echo ""
 
