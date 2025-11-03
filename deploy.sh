@@ -135,6 +135,73 @@ EOF
     echo "   • Use Cloudflare token for persistent tunnels"
     echo ""
 
+elif [ "$1" == "multiport" ]; then
+    echo "🔌 Multi-Port VPS Deployment"
+    echo "============================"
+    echo ""
+    echo "Setting up multi-port environment for VPS..."
+
+    if [ -f "./port-manager.sh" ]; then
+        ./port-manager.sh setup "$2" "$3" "$4" "$5" "$6" "$7" "$8" "$9" "${10}"
+    else
+        echo "❌ Error: port-manager.sh not found"
+        exit 1
+    fi
+
+elif [ "$1" == "ports" ]; then
+    echo "🔌 Port Management"
+    echo "=================="
+    echo ""
+
+    if [ -f "./port-manager.sh" ]; then
+        if [ -z "$2" ]; then
+            ./port-manager.sh status
+        else
+            ./port-manager.sh "$2" "$3" "$4"
+        fi
+    else
+        echo "❌ Error: port-manager.sh not found"
+        echo "Run './deploy.sh multiport' to set up port management first"
+        exit 1
+    fi
+
+elif [ "$1" == "forward" ]; then
+    echo "🔗 Port Forwarding"
+    echo "=================="
+    echo ""
+
+    if [ -f "./port-manager.sh" ]; then
+        ./port-manager.sh forward "$2"
+    else
+        echo "❌ Error: port-manager.sh not found"
+        echo "Run './deploy.sh multiport' to set up port management first"
+        exit 1
+    fi
+
+elif [ "$1" == "start-multi" ]; then
+    echo "🚀 Starting Multi-Port Services"
+    echo "==============================="
+    echo ""
+
+    if [ -f "./port-manager.sh" ]; then
+        ./port-manager.sh start
+    else
+        echo "❌ Error: port-manager.sh not found"
+        exit 1
+    fi
+
+elif [ "$1" == "stop-multi" ]; then
+    echo "🛑 Stopping Multi-Port Services"
+    echo "=============================="
+    echo ""
+
+    if [ -f "./port-manager.sh" ]; then
+        ./port-manager.sh stop
+    else
+        echo "❌ Error: port-manager.sh not found"
+        exit 1
+    fi
+
 elif [ "$1" == "tunnel" ]; then
     echo "🔗 Cloudflare Tunnel Management"
     echo "==============================="
