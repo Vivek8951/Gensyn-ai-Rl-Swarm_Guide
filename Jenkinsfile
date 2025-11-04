@@ -61,7 +61,7 @@ fi
           if (prebuiltImageExists) {
             echo "✅ Pre-built Dockerfile found - deploying pre-built image"
 
-            # Deploy pre-built image with all ports
+            // Deploy pre-built image with all ports
             withCredentials([usernamePassword(credentialsId: "${DOCKERHUB_CREDENTIALS}", usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
               sh '''#!/bin/bash
 set -euo pipefail
