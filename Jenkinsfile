@@ -45,28 +45,46 @@ fi
 
     stage('Build / Package') {
       steps {
-        // Use pre-built Docker image - no build stage needed
+        // Build pre-built Docker image and deploy
         script {
-          echo "✅ USING PRE-BUILT DOCKER IMAGE - No build stage needed"
+          echo "🏗️  BUILDING PRE-BUILT DOCKER IMAGE"
+          echo "========================================"
           echo ""
-          echo "📦 Pre-built image contains:"
-          echo "   • Git repository: Pre-cloned"
-          echo "   • Node.js modules: Pre-installed"
-          echo "   • Python environment: Pre-built"
-          echo "   • Setup time: Instant"
+          echo "📦 Pre-building all components during image creation:"
+          echo "   • Git repository: Pre-cloned during build"
+          echo "   • Node.js modules: Pre-installed during build"
+          echo "   • Python environment: Pre-created during build"
+          echo "   • Setup time: Instant (no downloads needed)"
           echo ""
-          echo "🚀 Deploying pre-built Docker image..."
 
           def prebuiltImageExists = fileExists('Dockerfile')
           if (prebuiltImageExists) {
-            echo "✅ Pre-built Dockerfile found - deploying pre-built image"
+            echo "✅ Pre-built Dockerfile found - building and deploying pre-built image"
 
-            // Deploy pre-built image with all ports
+            // Build pre-built image and deploy with all ports
             withCredentials([usernamePassword(credentialsId: "${DOCKERHUB_CREDENTIALS}", usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
               sh '''#!/bin/bash
 set -euo pipefail
 IMAGE_NAME="${DOCKER_USER}/gensyn-rl-swarm-prebuilt"
 TAG="latest"
+
+echo "🏗️  Building pre-built Docker image ${IMAGE_NAME}:${TAG}..."
+echo "This will pre-install all dependencies during Docker build..."
+
+# Build the pre-built Docker image
+if docker build -t "${IMAGE_NAME}:${TAG}" .; then
+    echo "✅ Pre-built Docker image built successfully!"
+    echo ""
+    echo "📦 Pre-built components:"
+    echo "   • Git repository: Pre-cloned"
+    echo "   • Node.js modules: Pre-installed"
+    echo "   • Python environment: Pre-created"
+    echo "   • Setup time: Instant"
+    echo ""
+else
+    echo "❌ Docker build failed!"
+    exit 1
+fi
 
 echo "🚀 Deploying pre-built image ${IMAGE_NAME}:${TAG}..."
 docker run -d \
@@ -80,6 +98,7 @@ docker run -d \
     -p 9002:9002 \
     -e AUTO_TUNNEL=true \
     -e REMOTE_ACCESS=true \
+    -e PREBUILT=true \
     --restart unless-stopped \
     "${IMAGE_NAME}:${TAG}"
 
