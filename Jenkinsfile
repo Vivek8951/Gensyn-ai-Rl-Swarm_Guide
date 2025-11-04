@@ -108,6 +108,17 @@ echo "📊 Container Status:"
 docker ps --filter "name=rl-swarm-prebuilt" --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
 echo ""
 
+echo "🔥 Pushing pre-built image to Docker Hub..."
+if docker push "${IMAGE_NAME}:${TAG}"; then
+    echo "✅ Pre-built image pushed successfully to Docker Hub!"
+    echo "✅ Image available: ${IMAGE_NAME}:${TAG}"
+else
+    echo "⚠️  Docker push failed, but container is running locally"
+    echo "   • Container continues to work locally"
+    echo "   • Push credentials may need verification"
+fi
+
+echo ""
 echo "📝 Access URLs:"
 echo "   Main: http://localhost:3000"
 echo "   Alternative: http://localhost:8080"
@@ -116,6 +127,8 @@ echo ""
 echo "📊 Real-time logs:"
 echo "   docker logs -f rl-swarm-prebuilt"
 echo ""
+echo "🎉 PRE-BUILT DEPLOYMENT COMPLETE! 🚀"
+echo "✅ All dependencies pre-installed - instant access!"
 '''
             }
           } else {
