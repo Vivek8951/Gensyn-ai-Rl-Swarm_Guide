@@ -91,7 +91,7 @@ RUN cd rl-swarm && \
     echo "Packages count: $(ls node_modules 2>/dev/null | wc -l)"
 
 # Pre-make scripts executable
-RUN cd rlswarm && \
+RUN cd rl-swarm && \
     chmod +x run_rl_swarm.sh && \
     echo "✅ Scripts made executable"
 
