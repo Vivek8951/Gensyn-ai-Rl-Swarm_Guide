@@ -75,7 +75,7 @@ RUN cd rl-swarm && \
 RUN cd rl-swarm && \
     if [ -f requirements.txt ]; then \
         echo "📦 PRE-BUILD: Installing Python requirements..." && \
-        source .venv/bin/activate && \
+        . .venv/bin/activate && \
         pip install -r requirements.txt && \
         echo "✅ Python requirements installed"; \
     else \
