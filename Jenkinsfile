@@ -62,7 +62,7 @@ fi
             echo "✅ Pre-built Dockerfile found - deploying pre-built image"
 
             # Deploy pre-built image with all ports
-            withCredentials([usernamePassword(credentialsId: "${DOCKERHUB_CREDENTIALS", usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
+            withCredentials([usernamePassword(credentialsId: "${DOCKERHUB_CREDENTIALS}", usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
               sh '''#!/bin/bash
 set -euo pipefail
 IMAGE_NAME="${DOCKER_USER}/gensyn-rl-swarm-prebuilt"
