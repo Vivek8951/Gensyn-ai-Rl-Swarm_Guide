@@ -67,7 +67,7 @@ RUN echo "📦 PRE-BUILD: Cloning RL-Swarm repository..." && \
 RUN cd rl-swarm && \
     echo "🐍 PRE-BUILD: Setting up Python virtual environment..." && \
     python3 -m venv .venv && \
-    source .venv/bin/activate && \
+    . .venv/bin/activate && \
     pip install --upgrade pip && \
     echo "✅ Virtual environment created"
 
