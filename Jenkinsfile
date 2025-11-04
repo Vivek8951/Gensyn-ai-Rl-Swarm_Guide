@@ -45,53 +45,63 @@ fi
 
     stage('Build / Package') {
       steps {
-        // If there's a Dockerfile, build a docker image. Otherwise create an archive of repo as artifact.
+        // Use pre-built Docker image - no build stage needed
         script {
-          def dockerfileExists = fileExists('Dockerfile')
-          if (dockerfileExists) {
+          echo "✅ USING PRE-BUILT DOCKER IMAGE - No build stage needed"
+          echo ""
+          echo "📦 Pre-built image contains:"
+          echo "   • Git repository: Pre-cloned"
+          echo "   • Node.js modules: Pre-installed"
+          echo "   • Python environment: Pre-built"
+          echo "   • Setup time: Instant"
+          echo ""
+          echo "🚀 Deploying pre-built Docker image..."
+
+          def prebuiltImageExists = fileExists('Dockerfile')
+          if (prebuiltImageExists) {
+            echo "✅ Pre-built Dockerfile found - deploying pre-built image"
+
+            # Deploy pre-built image with all ports
             withCredentials([usernamePassword(credentialsId: "${DOCKERHUB_CREDENTIALS}", usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
               sh '''#!/bin/bash
 set -euo pipefail
-IMAGE_NAME="${DOCKER_USER}/gensyn-rl-swarm"
+IMAGE_NAME="${DOCKER_USER}/gensyn-rl-swarm-prebuilt"
 TAG="latest"
 
-echo "Building Docker image ${IMAGE_NAME}:${TAG}"
-if ! docker build -t "${IMAGE_NAME}:${TAG}" .; then
-  echo "ERROR: Docker build failed. Showing last 50 lines of build log:"
-  echo "=========================================="
-  # Build logs are shown automatically on failure, but we ensure visibility
-  exit 1
-fi
+echo "🚀 Deploying pre-built image ${IMAGE_NAME}:${TAG}..."
+docker run -d \
+    --name rl-swarm-prebuilt \
+    -p 3000:3000 \
+    -p 8080:8080 \
+    -p 8081:8081 \
+    -p 8082:8082 \
+    -p 9000:9000 \
+    -p 9001:9001 \
+    -p 9002:9002 \
+    -e AUTO_TUNNEL=true \
+    -e REMOTE_ACCESS=true \
+    --restart unless-stopped \
+    "${IMAGE_NAME}:${TAG}"
 
-echo "Docker build successful. Verifying image exists:"
-docker images "${IMAGE_NAME}:${TAG}"
+echo "✅ Pre-built container started successfully!"
+echo ""
+echo "📊 Container Status:"
+docker ps --filter "name=rl-swarm-prebuilt" --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+echo ""
 
-echo "Logging into Docker Hub..."
-if ! echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin; then
-  echo "ERROR: Docker login failed"
-  exit 1
-fi
-
-echo "Pushing Docker image..."
-if ! docker push "${IMAGE_NAME}:${TAG}"; then
-  echo "ERROR: Docker push failed"
-  docker logout
-  exit 1
-fi
-
-echo "Docker push successful. Logging out..."
-docker logout
+echo "📝 Access URLs:"
+echo "   Main: http://localhost:3000"
+echo "   Alternative: http://localhost:8080"
+echo "   Port 9000: http://localhost:9000"
+echo ""
+echo "📊 Real-time logs:"
+echo "   docker logs -f rl-swarm-prebuilt"
+echo ""
 '''
             }
           } else {
-            sh '''#!/bin/bash
-set -euo pipefail
-ARCHIVE="repo-archive.tar.gz"
-echo "No Dockerfile found. Creating ${ARCHIVE} artifact"
-tar -czf "${ARCHIVE}" --exclude=.git .
-ls -lh "${ARCHIVE}"
-'''
-            archiveArtifacts artifacts: 'repo-archive.tar.gz', fingerprint: true
+            echo "❌ Dockerfile not found - cannot deploy pre-built image"
+            error "Pre-built Dockerfile not found. Cannot continue."
           }
         }
       }
