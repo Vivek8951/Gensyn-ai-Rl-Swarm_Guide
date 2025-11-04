@@ -14,10 +14,10 @@ echo "🔥 PUSHING PRE-BUILT DOCKER IMAGE TO DOCKER HUB"
 echo "========================================"
 echo "   Image: ${IMAGE_NAME}:${TAG}"
 echo "   All components pre-built during Docker image build"
-   • Git repository: Pre-cloned during image build
-   • Node.js modules: Pre-installed during image build
-   • Python environment: Pre-created during image build
-   • Setup time: Instant (no downloads needed)
+echo "   • Git repository: Pre-cloned during image build"
+echo "   • Node.js modules: Pre-installed during image build"
+echo "   • Python environment: Pre-created during image build"
+echo "   • Setup time: Instant (no downloads needed)"
 echo ""
 
 echo "🔥 Login to Docker Hub if credentials available"
