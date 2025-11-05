@@ -87,6 +87,12 @@ else
 fi
 
 echo "🚀 Deploying pre-built image ${IMAGE_NAME}:${TAG}..."
+
+# Stop and remove existing container if it exists
+docker stop rl-swarm-prebuilt 2>/dev/null || echo "No existing container to stop"
+docker rm rl-swarm-prebuilt 2>/dev/null || echo "No existing container to remove"
+
+# Deploy the new container
 docker run -d \
     --name rl-swarm-prebuilt \
     -p 3000:3000 \
