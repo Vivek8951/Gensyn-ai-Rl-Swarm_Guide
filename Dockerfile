@@ -67,7 +67,7 @@ RUN echo "📦 PRE-BUILD: Cloning RL-Swarm repository..." && \
 RUN cd rl-swarm && \
     echo "🐍 PRE-BUILD: Setting up Python virtual environment..." && \
     python3 -m venv .venv && \
-    source .venv/bin/activate && \
+    . .venv/bin/activate && \
     pip install --upgrade pip && \
     echo "✅ Virtual environment created"
 
@@ -75,7 +75,7 @@ RUN cd rl-swarm && \
 RUN cd rl-swarm && \
     if [ -f requirements.txt ]; then \
         echo "📦 PRE-BUILD: Installing Python requirements..." && \
-        source .venv/bin/activate && \
+        . .venv/bin/activate && \
         pip install -r requirements.txt && \
         echo "✅ Python requirements installed"; \
     else \
@@ -91,7 +91,7 @@ RUN cd rl-swarm && \
     echo "Packages count: $(ls node_modules 2>/dev/null | wc -l)"
 
 # Pre-make scripts executable
-RUN cd rlswarm && \
+RUN cd rl-swarm && \
     chmod +x run_rl_swarm.sh && \
     echo "✅ Scripts made executable"
 
