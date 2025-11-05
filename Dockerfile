@@ -119,12 +119,12 @@ EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
     CMD curl -f http://localhost:3000 || exit 1
 
-# Copy pre-built optimized entrypoint
-COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
-RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+# Copy pre-built optimized entrypoint to user directory
+COPY --chown=rlswarm:rlswarm docker-entrypoint.sh /home/rlswarm/docker-entrypoint.sh
+RUN chmod +x /home/rlswarm/docker-entrypoint.sh
 
 # Set entrypoint
-ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
+ENTRYPOINT ["/home/rlswarm/docker-entrypoint.sh"]
 
 # Default command
 CMD ["./run_rl_swarm.sh"]
