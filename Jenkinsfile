@@ -88,25 +88,74 @@ fi
 
 echo "🚀 Deploying pre-built image ${IMAGE_NAME}:${TAG}..."
 
-# Stop and remove existing container if it exists
-docker stop rl-swarm-prebuilt 2>/dev/null || echo "No existing container to stop"
-docker rm rl-swarm-prebuilt 2>/dev/null || echo "No existing container to remove"
+# AGGRESSIVE CONTAINER CLEANUP - Stop ALL RL-Swarm related containers
+echo "🧹 Cleaning up existing RL-Swarm containers..."
+for container in $(docker ps -a --format "{{.Names}}" 2>/dev/null | grep -E "rl-swarm|gensyn" || true); do
+    echo "Stopping container: $container"
+    docker stop "$container" 2>/dev/null || true
+    echo "Removing container: $container"
+    docker rm "$container" 2>/dev/null || true
+done
 
-# Deploy the new container
-docker run -d \
-    --name rl-swarm-prebuilt \
-    -p 3000:3000 \
-    -p 8080:8080 \
-    -p 8081:8081 \
-    -p 8082:8082 \
-    -p 9000:9000 \
-    -p 9001:9001 \
-    -p 9002:9002 \
-    -e AUTO_TUNNEL=true \
-    -e REMOTE_ACCESS=true \
-    -e PREBUILT=true \
-    --restart unless-stopped \
-    "${IMAGE_NAME}:${TAG}"
+# Force cleanup of any dangling containers
+echo "🧹 Cleaning up dangling containers..."
+docker container prune -f 2>/dev/null || true
+
+# Try to free up ports if still in use
+echo "🔧 Checking for port conflicts on 3000, 8080-8082, 9000-9002..."
+for port in 3000 8080 8081 8082 9000 9001 9002; do
+    if lsof -i :$port >/dev/null 2>&1; then
+        echo "⚠️  Port $port is still in use, trying to free it..."
+        pkill -f ":$port" 2>/dev/null || true
+        sleep 2
+    fi
+done
+
+# Deploy the new container with unique name and retry logic
+CONTAINER_NAME="rl-swarm-prebuilt-$(date +%s)"
+MAX_RETRIES=3
+RETRY_COUNT=0
+
+while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+    echo "🚀 Attempting deployment (Attempt $((RETRY_COUNT + 1))..."
+
+    if docker run -d \
+        --name "${CONTAINER_NAME}" \
+        -p 3000:3000 \
+        -p 8080:8080 \
+        -p 8081:8081 \
+        -p 8082:8082 \
+        -p 9000:9000 \
+        -p 9001:9001 \
+        -p 9002:9002 \
+        -e AUTO_TUNNEL=true \
+        -e REMOTE_ACCESS=true \
+        -e PREBUILT=true \
+        --restart unless-stopped \
+        "${IMAGE_NAME}:${TAG}"; then
+
+        echo "✅ Container deployed successfully!"
+        break
+    else
+        echo "❌ Deployment attempt failed, cleaning up..."
+        docker stop "${CONTAINER_NAME}" 2>/dev/null || true
+        docker rm "${CONTAINER_NAME}" 2>/dev/null || true
+        RETRY_COUNT=$((RETRY_COUNT + 1))
+        if [ $RETRY_COUNT -lt $MAX_RETRIES ]; then
+            echo "⏳ Waiting 5 seconds before retry..."
+            sleep 5
+        fi
+    fi
+done
+
+if [ $RETRY_COUNT -eq $MAX_RETRIES ]; then
+    echo "❌ All deployment attempts failed!"
+    echo "🔍 Debugging port usage:"
+    for port in 3000 8080 8081 8082 9000 9001 9002; do
+        echo "Port $port: $(lsof -i :$port 2>/dev/null || echo 'Free')"
+    done
+    exit 1
+fi
 
 echo "✅ Pre-built container started successfully!"
 echo ""
