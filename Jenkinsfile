@@ -88,28 +88,34 @@ fi
 
 echo "🚀 Deploying pre-built image ${IMAGE_NAME}:${TAG}..."
 
-# AGGRESSIVE CONTAINER CLEANUP - Stop ALL RL-Swarm related containers
-echo "🧹 Cleaning up existing RL-Swarm containers..."
-for container in $(docker ps -a --format "{{.Names}}" 2>/dev/null | grep -E "rl-swarm|gensyn" || true); do
-    echo "Stopping container: $container"
-    docker stop "$container" 2>/dev/null || true
-    echo "Removing container: $container"
-    docker rm "$container" 2>/dev/null || true
-done
-
-# Force cleanup of any dangling containers
-echo "🧹 Cleaning up dangling containers..."
-docker container prune -f 2>/dev/null || true
-
-# Try to free up ports if still in use
-echo "🔧 Checking for port conflicts on 3000, 8080-8082, 9000-9002..."
-for port in 3000 8080 8081 8082 9000 9001 9002; do
-    if lsof -i :$port >/dev/null 2>&1; then
-        echo "⚠️  Port $port is still in use, trying to free it..."
-        pkill -f ":$port" 2>/dev/null || true
-        sleep 2
+# COMPREHENSIVE CONTAINER CLEANUP - Use specialized cleanup script
+echo "🧹 Running comprehensive cleanup before deployment..."
+if [ -f "./jenkins-cleanup.sh" ]; then
+    echo "Using specialized cleanup script..."
+    chmod +x ./jenkins-cleanup.sh
+    if ./jenkins-cleanup.sh; then
+        echo "✅ Comprehensive cleanup completed successfully"
+    else
+        echo "⚠️  Cleanup script failed, falling back to basic cleanup..."
+        # Fallback to basic cleanup
+        for container in $(docker ps -a --format "{{.Names}}" 2>/dev/null | grep -E "rl-swarm|gensyn" || true); do
+            docker stop "$container" 2>/dev/null || true
+            docker rm "$container" 2>/dev/null || true
+        done
+        docker container prune -f 2>/dev/null || true
     fi
-done
+else
+    echo "⚠️  Cleanup script not found, performing basic cleanup..."
+    # Basic cleanup fallback
+    for container in $(docker ps -a --format "{{.Names}}" 2>/dev/null | grep -E "rl-swarm|gensyn" || true); do
+        docker stop "$container" 2>/dev/null || true
+        docker rm "$container" 2>/dev/null || true
+    done
+fi
+
+# Final verification - wait a moment for cleanup to complete
+echo "⏳ Waiting for cleanup to complete..."
+sleep 3
 
 # Deploy the new container with unique name and retry logic
 CONTAINER_NAME="rl-swarm-prebuilt-$(date +%s)"
