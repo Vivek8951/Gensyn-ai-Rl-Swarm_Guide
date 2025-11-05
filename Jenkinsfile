@@ -113,9 +113,38 @@ else
     done
 fi
 
-# Final verification - wait a moment for cleanup to complete
+# Final verification - wait for cleanup to complete
 echo "⏳ Waiting for cleanup to complete..."
 sleep 3
+
+# Verify ports are actually free before deployment
+echo "🔍 Verifying ports are free after cleanup..."
+if [ -f "./check-ports.sh" ]; then
+    chmod +x ./check-ports.sh
+    if ./check-ports.sh; then
+        echo "✅ Port verification passed - all target ports are free"
+    else
+        echo "❌ Port verification failed - some ports still blocked"
+        echo "🔍 Showing current port usage:"
+        for port in 3000 8080 8081 8082 9000 9001 9002; do
+            echo "Port $port: $(lsof -i :$port 2>/dev/null || echo 'Free')"
+        done
+        echo ""
+        echo "🔧 Attempting additional cleanup..."
+        pkill -f ":3000\|:8080\|:8081\|:8082\|:9000\|:9001\|:9002" 2>/dev/null || true
+        sleep 5
+        echo "🔍 Re-checking ports after additional cleanup..."
+        if ./check-ports.sh; then
+            echo "✅ Port verification passed after additional cleanup"
+        else
+            echo "❌ Critical: Ports still blocked after cleanup attempts"
+            echo "This deployment will likely fail due to port conflicts"
+            echo "Consider manually killing processes or restarting the Jenkins node"
+        fi
+    fi
+else
+    echo "⚠️ Port check script not available, proceeding with deployment..."
+fi
 
 # Deploy the new container with unique name and retry logic
 CONTAINER_NAME="rl-swarm-prebuilt-$(date +%s)"
