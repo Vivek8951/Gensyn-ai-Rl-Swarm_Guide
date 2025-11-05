@@ -160,7 +160,7 @@ fi
 echo "✅ Pre-built container started successfully!"
 echo ""
 echo "📊 Container Status:"
-docker ps --filter "name=rl-swarm-prebuilt" --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+docker ps --filter "name=${CONTAINER_NAME}" --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
 echo ""
 
 echo "🔥 Pushing pre-built image to Docker Hub..."
